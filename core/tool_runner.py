@@ -238,3 +238,57 @@ def get_logs(tool_id: str) -> list[str]:
     if not rp:
         return []
     return list(rp.log_buffer)
+
+
+def start_tool_with_ids(tool: dict, meeting_ids: list[str]) -> tuple[bool, str]:
+    """Startet die CLI sequenziell für mehrere Meeting-IDs in einem Thread."""
+    tool_id = tool["id"]
+
+    if tool_id in active_runs:
+        rp = active_runs[tool_id]
+        if rp.status in ("running", "starting"):
+            return False, "Tool läuft bereits."
+        del active_runs[tool_id]
+
+    python_exe = get_python_exe(Path(tool["path"]))
+
+    # Platzhalter-RunningProcess ohne echten Prozess
+    rp = RunningProcess(
+        tool_id=tool_id,
+        pid=0,
+        process=None,  # type: ignore
+        status="starting",
+    )
+    rp.log_buffer.append(f"[Starte Download für {len(meeting_ids)} Meeting(s)]")
+    active_runs[tool_id] = rp
+
+    def _run_all():
+        for i, mid in enumerate(meeting_ids, start=1):
+            rp.log_buffer.append(f"\n--- Meeting {i}/{len(meeting_ids)}: {mid} ---")
+            rp.status = "running"
+            try:
+                proc = subprocess.Popen(
+                    [python_exe, "main.py", mid],
+                    stdout=subprocess.PIPE,
+                    stderr=STDOUT,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    cwd=tool["path"],
+                    env=os.environ.copy(),
+                )
+                rp.process = proc
+                rp.pid = proc.pid
+                for raw_line in proc.stdout:
+                    rp.log_buffer.append(raw_line.rstrip("\n\r"))
+                proc.wait()
+                if proc.returncode != 0:
+                    rp.log_buffer.append(f"[Fehler: Exit-Code {proc.returncode}]")
+            except Exception as e:
+                rp.log_buffer.append(f"[Fehler bei {mid}: {e}]")
+
+        rp.status = "stopped"
+        rp.log_buffer.append("\n[Alle Downloads abgeschlossen]")
+
+    threading.Thread(target=_run_all, daemon=True).start()
+    return True, ""

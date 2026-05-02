@@ -58,6 +58,105 @@
     </div>
     {% endif %}
   {% elif tool.type == 'cli' %}
+
+  {% if tool.id == 'transkription-document-handling' %}
+  <!-- Meetings-Picker für Transkription -->
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between;">
+      <span>Meetings auswählen</span>
+      <button type="button" class="btn btn-gray btn-sm" onclick="loadMeetings()">↻ Meetings laden</button>
+    </div>
+
+    <div id="meetings-loading" style="display:none; padding:12px; color:var(--abp-gray-600);">Lade Meetings von Fireflies...</div>
+    <div id="meetings-error" style="display:none; padding:12px; color:var(--abp-red);"></div>
+
+    <form method="post" action="/tool/{{ tool.id }}/run-picks" id="picks-form">
+      <div id="meetings-table-wrap" style="display:none;">
+        <table class="output-table" style="margin-bottom:0;">
+          <thead>
+            <tr>
+              <th style="width:36px;">
+                <input type="checkbox" id="chk-all" title="Alle aus-/abwählen" onchange="toggleAll(this)">
+              </th>
+              <th>#</th>
+              <th>Datum</th>
+              <th>Dauer</th>
+              <th>Titel</th>
+            </tr>
+          </thead>
+          <tbody id="meetings-tbody"></tbody>
+        </table>
+        <div style="display:flex; align-items:center; gap:12px; padding:16px 0 4px;">
+          <button type="submit" class="btn btn-success">▶ Ausgewählte herunterladen</button>
+          <span id="selected-count" style="color:var(--abp-gray-600); font-size:13px;">0 ausgewählt</span>
+        </div>
+      </div>
+      <div id="meetings-empty" style="padding:16px; color:var(--abp-gray-600);">
+        Klicke auf <strong>Meetings laden</strong> um die letzten 20 Fireflies-Meetings anzuzeigen.
+      </div>
+    </form>
+  </div>
+
+  <script>
+  let meetingsData = [];
+
+  function loadMeetings() {
+    document.getElementById('meetings-loading').style.display = 'block';
+    document.getElementById('meetings-error').style.display = 'none';
+    document.getElementById('meetings-table-wrap').style.display = 'none';
+    document.getElementById('meetings-empty').style.display = 'none';
+
+    fetch('/tool/{{ tool.id }}/meetings')
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('meetings-loading').style.display = 'none';
+        if (data.error) {
+          document.getElementById('meetings-error').textContent = 'Fehler: ' + data.error;
+          document.getElementById('meetings-error').style.display = 'block';
+          return;
+        }
+        meetingsData = data;
+        renderMeetings(data);
+      })
+      .catch(e => {
+        document.getElementById('meetings-loading').style.display = 'none';
+        document.getElementById('meetings-error').textContent = 'Verbindungsfehler: ' + e;
+        document.getElementById('meetings-error').style.display = 'block';
+      });
+  }
+
+  function renderMeetings(meetings) {
+    const tbody = document.getElementById('meetings-tbody');
+    tbody.innerHTML = '';
+    meetings.forEach((m, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="checkbox" name="meeting_id" value="${m.id}" onchange="updateCount()"></td>
+        <td style="color:var(--abp-gray-600);">${i+1}</td>
+        <td style="white-space:nowrap;">${m.date}</td>
+        <td style="white-space:nowrap;">${m.duration} Min</td>
+        <td>${m.title}</td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('meetings-table-wrap').style.display = 'block';
+    updateCount();
+  }
+
+  function toggleAll(chk) {
+    document.querySelectorAll('#meetings-tbody input[type=checkbox]').forEach(c => {
+      c.checked = chk.checked;
+    });
+    updateCount();
+  }
+
+  function updateCount() {
+    const n = document.querySelectorAll('#meetings-tbody input[type=checkbox]:checked').length;
+    document.getElementById('selected-count').textContent = n + ' ausgewählt';
+  }
+  </script>
+
+  {% else %}
+  <!-- Generisches CLI-Formular -->
   <div class="card">
     <div class="card-title">CLI-Tool ausführen</div>
     {% if cli_specs %}
@@ -65,14 +164,11 @@
       {% for spec in cli_specs %}
       <div class="form-group">
         <label class="form-label">{{ spec.arg_label }}</label>
-        {% if spec.arg_type == 'text' %}
-        <textarea name="arg_{{ spec.arg_name }}" class="form-textarea">{{ spec.default_value or '' }}</textarea>
-        {% elif spec.arg_type == 'date' %}
+        {% if spec.arg_type == 'date' %}
         <input type="date" name="arg_{{ spec.arg_name }}" class="form-input" value="{{ spec.default_value or '' }}">
         {% else %}
         <input type="text" name="arg_{{ spec.arg_name }}" class="form-input"
-               value="{{ spec.default_value or '' }}"
-               placeholder="{{ spec.arg_name }}">
+               value="{{ spec.default_value or '' }}" placeholder="{{ spec.arg_name }}">
         {% endif %}
         <small class="text-muted">{{ spec.arg_name }}</small>
       </div>
@@ -81,11 +177,12 @@
     </form>
     {% else %}
     <form method="post" action="/tool/{{ tool.id }}/start">
-      <p class="text-muted mb-4">Keine CLI-Parameter konfiguriert. Tool wird ohne Argumente gestartet.</p>
+      <p class="text-muted mb-4">Keine CLI-Parameter konfiguriert.</p>
       <button type="submit" class="btn btn-success">▶ Ausführen</button>
     </form>
     {% endif %}
   </div>
+  {% endif %}
   {% else %}
   <div class="card" style="text-align:center; padding:32px;">
     <p class="text-muted">Dieses Placeholder-Tool kann nicht gestartet werden.</p>
