@@ -31,9 +31,9 @@ for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":8080 "') do (
     taskkill /PID %%a /F >nul 2>&1
 )
 
-REM Flask im Hintergrund starten, Log in server.log
+REM Flask im Hintergrund starten
 echo  Starte Server...
-start /b "" ".venv\Scripts\python.exe" app.py > server.log 2>&1
+start /b "" ".venv\Scripts\python.exe" app.py
 
 REM Warten bis Port 8080 antwortet (max. 30 Sekunden)
 echo  Warte auf Server...
