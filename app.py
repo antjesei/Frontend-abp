@@ -6,8 +6,6 @@ abp Toolboard — Flask-Hauptanwendung auf Port 8080.
 from __future__ import annotations
 
 import os
-import threading
-import webbrowser
 from pathlib import Path
 
 from flask import Flask, g
@@ -81,5 +79,4 @@ if __name__ == "__main__":
     print("  http://127.0.0.1:8080")
     print("=" * 52)
 
-    threading.Timer(1.5, webbrowser.open, args=["http://127.0.0.1:8080"]).start()
     app.run(host="127.0.0.1", port=8080, debug=False)
