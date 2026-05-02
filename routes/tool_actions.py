@@ -110,12 +110,20 @@ def logs_stream(tool_id: str):
     )
 
 
+_meetings_cache: dict[str, tuple[float, list]] = {}  # tool_id -> (timestamp, data)
+_CACHE_TTL = 300  # 5 Minuten
+
 @bp.route("/<tool_id>/meetings")
 def list_meetings(tool_id: str):
-    """Gibt die letzten 20 Fireflies-Meetings als JSON zurück."""
+    """Gibt die letzten 20 Fireflies-Meetings als JSON zurück (5-Min-Cache)."""
     tool = db.get_tool(tool_id)
     if not tool:
         return jsonify({"error": "Tool nicht gefunden"}), 404
+
+    # Cache prüfen
+    cached = _meetings_cache.get(tool_id)
+    if cached and (time.time() - cached[0]) < _CACHE_TTL:
+        return jsonify(cached[1])
 
     python_exe = get_python_exe(Path(tool["path"]))
     try:
@@ -124,9 +132,16 @@ def list_meetings(tool_id: str):
             capture_output=True, text=True, encoding="utf-8",
             errors="replace", cwd=tool["path"], timeout=30,
         )
+        # Fehlertext aus stdout+stderr zusammensetzen
+        err_text = (result.stderr or "").strip() or (result.stdout or "").strip()
         if result.returncode != 0:
-            return jsonify({"error": result.stderr or "Fehler beim Laden"}), 500
+            # Rate-Limit-Hinweis aus dem Text extrahieren
+            if "Rate-Limit" in err_text or "too_many_requests" in err_text or "retry" in err_text.lower():
+                msg = next((l for l in err_text.splitlines() if "Rate-Limit" in l or "retry" in l.lower()), err_text)
+                return jsonify({"error": msg}), 429
+            return jsonify({"error": err_text or "Fehler beim Laden"}), 500
         meetings = json.loads(result.stdout)
+        _meetings_cache[tool_id] = (time.time(), meetings)
         return jsonify(meetings)
     except subprocess.TimeoutExpired:
         return jsonify({"error": "Timeout beim Laden der Meetings"}), 504
