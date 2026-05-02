@@ -30,10 +30,8 @@ if errorlevel 1 (
     )
 )
 
-REM Browser nach kurzem Delay oeffnen
-start "" /b cmd /c "timeout /t 2 /nobreak >nul && start http://127.0.0.1:8080"
-
 echo  Server laeuft auf http://127.0.0.1:8080
+echo  Browser wird automatisch geoeffnet...
 echo  Fenster schliessen beendet den Server.
 echo.
 
