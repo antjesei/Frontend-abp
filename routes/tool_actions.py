@@ -191,3 +191,24 @@ def run_picks(tool_id: str):
     else:
         flash(f"Fehler: {err}", "error")
     return redirect(url_for("tool_actions.tool_detail", tool_id=tool_id))
+
+
+@bp.route("/<tool_id>/delete-recordings", methods=["POST"])
+def delete_recordings(tool_id: str):
+    """Löscht ausgewählte Fireflies-Aufnahmen dauerhaft."""
+    tool = db.get_tool(tool_id)
+    if not tool:
+        flash("Tool nicht gefunden.", "error")
+        return redirect(url_for("tool_actions.tool_detail", tool_id=tool_id))
+
+    selected_ids = request.form.getlist("meeting_id")
+    if not selected_ids:
+        flash("Keine Aufnahmen ausgewählt.", "error")
+        return redirect(url_for("tool_actions.tool_detail", tool_id=tool_id))
+
+    success, err = tool_runner.start_tool_delete_ids(tool, selected_ids)
+    if success:
+        flash(f"{len(selected_ids)} Aufnahme(n) werden gelöscht. Fortschritt im Logs-Tab.", "success")
+    else:
+        flash(f"Fehler: {err}", "error")
+    return redirect(url_for("tool_actions.tool_detail", tool_id=tool_id))

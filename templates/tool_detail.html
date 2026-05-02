@@ -97,6 +97,57 @@
     </form>
   </div>
 
+  <!-- Aufnahmen löschen -->
+  <div class="card" style="border-left: 4px solid var(--abp-red); margin-top: 16px;">
+    <div class="card-title" style="justify-content:space-between; color: var(--abp-red);">
+      <span>⚠ Aufnahmen löschen</span>
+      <button type="button" class="btn btn-gray btn-sm" onclick="loadDeleteMeetings()">↻ Meetings laden</button>
+    </div>
+    <p style="font-size:13px; color:var(--abp-gray-600); margin-bottom:12px;">
+      Löscht die Aufnahme dauerhaft aus Fireflies. Lokal gespeicherte Transkripte bleiben erhalten.
+    </p>
+
+    <div id="del-meetings-loading" style="display:none; padding:8px; color:var(--abp-gray-600);">Lade Meetings...</div>
+    <div id="del-meetings-error" style="display:none; padding:8px; color:var(--abp-red);"></div>
+
+    <form method="post" action="/tool/{{ tool.id }}/delete-recordings" id="delete-form"
+          onsubmit="return confirmDelete(event)">
+      <div id="del-meetings-table-wrap" style="display:none;">
+        <table class="output-table" style="margin-bottom:0;">
+          <thead>
+            <tr>
+              <th style="width:36px;">
+                <input type="checkbox" id="del-chk-all" onchange="toggleDelAll(this)">
+              </th>
+              <th>#</th><th>Datum</th><th>Dauer</th><th>Titel</th>
+            </tr>
+          </thead>
+          <tbody id="del-meetings-tbody"></tbody>
+        </table>
+        <div style="display:flex; align-items:center; gap:12px; padding:16px 0 4px;">
+          <button type="submit" class="btn btn-danger">🗑 Ausgewählte endgültig löschen</button>
+          <span id="del-selected-count" style="color:var(--abp-gray-600); font-size:13px;">0 ausgewählt</span>
+        </div>
+      </div>
+      <div id="del-meetings-empty" style="padding:8px; color:var(--abp-gray-600);">
+        Klicke auf <strong>Meetings laden</strong> um Aufnahmen zur Löschung auszuwählen.
+      </div>
+    </form>
+  </div>
+
+  <!-- Bestätigungsdialog -->
+  <div id="confirm-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:8px; padding:32px; max-width:440px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <h3 style="color:var(--abp-red); margin:0 0 12px;">Aufnahmen dauerhaft löschen?</h3>
+      <p id="confirm-text" style="color:var(--abp-black); margin-bottom:20px;"></p>
+      <p style="color:var(--abp-gray-600); font-size:13px; margin-bottom:24px;">Diese Aktion kann nicht rückgängig gemacht werden. Lokal gespeicherte Dateien bleiben erhalten.</p>
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <button type="button" class="btn btn-gray" onclick="cancelDelete()">Abbrechen</button>
+        <button type="button" class="btn btn-danger" id="confirm-ok-btn">Ja, endgültig löschen</button>
+      </div>
+    </div>
+  </div>
+
   <script>
   let meetingsData = [];
 
@@ -152,6 +203,86 @@
   function updateCount() {
     const n = document.querySelectorAll('#meetings-tbody input[type=checkbox]:checked').length;
     document.getElementById('selected-count').textContent = n + ' ausgewählt';
+  }
+
+  // --- Löschen ---
+  let delMeetingsData = [];
+  let pendingDeleteSubmit = null;
+
+  function loadDeleteMeetings() {
+    document.getElementById('del-meetings-loading').style.display = 'block';
+    document.getElementById('del-meetings-error').style.display = 'none';
+    document.getElementById('del-meetings-table-wrap').style.display = 'none';
+    document.getElementById('del-meetings-empty').style.display = 'none';
+    fetch('/tool/{{ tool.id }}/meetings')
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('del-meetings-loading').style.display = 'none';
+        if (data.error) {
+          document.getElementById('del-meetings-error').textContent = 'Fehler: ' + data.error;
+          document.getElementById('del-meetings-error').style.display = 'block';
+          return;
+        }
+        delMeetingsData = data;
+        renderDeleteMeetings(data);
+      })
+      .catch(e => {
+        document.getElementById('del-meetings-loading').style.display = 'none';
+        document.getElementById('del-meetings-error').textContent = 'Verbindungsfehler: ' + e;
+        document.getElementById('del-meetings-error').style.display = 'block';
+      });
+  }
+
+  function renderDeleteMeetings(meetings) {
+    const tbody = document.getElementById('del-meetings-tbody');
+    tbody.innerHTML = '';
+    meetings.forEach((m, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="checkbox" name="meeting_id" value="${m.id}" onchange="updateDelCount()"></td>
+        <td style="color:var(--abp-gray-600);">${i+1}</td>
+        <td style="white-space:nowrap;">${m.date}</td>
+        <td style="white-space:nowrap;">${m.duration} Min</td>
+        <td>${m.title}</td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('del-meetings-table-wrap').style.display = 'block';
+    updateDelCount();
+  }
+
+  function toggleDelAll(chk) {
+    document.querySelectorAll('#del-meetings-tbody input[type=checkbox]').forEach(c => {
+      c.checked = chk.checked;
+    });
+    updateDelCount();
+  }
+
+  function updateDelCount() {
+    const n = document.querySelectorAll('#del-meetings-tbody input[type=checkbox]:checked').length;
+    document.getElementById('del-selected-count').textContent = n + ' ausgewählt';
+  }
+
+  function confirmDelete(e) {
+    e.preventDefault();
+    const checked = document.querySelectorAll('#del-meetings-tbody input[type=checkbox]:checked');
+    if (checked.length === 0) { alert('Bitte mindestens eine Aufnahme auswählen.'); return false; }
+    const titles = Array.from(checked).map(c => {
+      const row = c.closest('tr');
+      return row ? row.cells[4].textContent : c.value;
+    });
+    document.getElementById('confirm-text').innerHTML =
+      `<strong>${checked.length} Aufnahme(n)</strong> werden dauerhaft aus Fireflies gelöscht:<br><br>` +
+      titles.map(t => `• ${t}`).join('<br>');
+    document.getElementById('confirm-overlay').style.display = 'flex';
+    document.getElementById('confirm-ok-btn').onclick = () => {
+      document.getElementById('confirm-overlay').style.display = 'none';
+      document.getElementById('delete-form').submit();
+    };
+    return false;
+  }
+
+  function cancelDelete() {
+    document.getElementById('confirm-overlay').style.display = 'none';
   }
   </script>
 
