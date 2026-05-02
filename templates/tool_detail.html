@@ -214,7 +214,7 @@
     document.getElementById('del-meetings-error').style.display = 'none';
     document.getElementById('del-meetings-table-wrap').style.display = 'none';
     document.getElementById('del-meetings-empty').style.display = 'none';
-    fetch('/tool/{{ tool.id }}/meetings')
+    fetch('/tool/{{ tool.id }}/meetings?filter=downloaded')
       .then(r => r.json())
       .then(data => {
         document.getElementById('del-meetings-loading').style.display = 'none';

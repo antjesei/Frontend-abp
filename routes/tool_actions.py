@@ -113,17 +113,62 @@ def logs_stream(tool_id: str):
 _meetings_cache: dict[str, tuple[float, list]] = {}  # tool_id -> (timestamp, data)
 _CACHE_TTL = 300  # 5 Minuten
 
+
+def _sanitize(name: str) -> str:
+    """Repliziert naming.sanitize_filename aus dem Transkriptions-Tool."""
+    import re
+    name = re.sub(r'\.(mp4|mov|avi|mkv|webm|m4v|mp3|wav|m4a)$', '', name.strip(), flags=re.IGNORECASE)
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name).strip().strip('.')
+    name = re.sub(r'\s+', ' ', name)
+    name = re.sub(r'_+', '_', name)
+    return name or 'meeting'
+
+
+def _get_downloaded_folder_names(tool: dict) -> set[str]:
+    """Gibt die Menge der Ordnernamen zurück, die Transkriptions-Artefakte enthalten."""
+    import os
+    # OUTPUT_DIR aus .env des Tools laden
+    output_dir = None
+    env_path = Path(tool["path"]) / ".env"
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("OUTPUT_DIR="):
+                output_dir = line.split("=", 1)[1].strip()
+                break
+    if not output_dir:
+        output_dir = str(Path(tool["path"]) / "output")
+
+    artifact_suffixes = ("_transkr.docx", "_transkr.md", "_sum.docx", "_sum.md", "_audio.mp3")
+    downloaded: set[str] = set()
+    try:
+        for entry in os.scandir(output_dir):
+            if not entry.is_dir():
+                continue
+            for f in os.scandir(entry.path):
+                if any(f.name.endswith(s) for s in artifact_suffixes):
+                    downloaded.add(entry.name)
+                    break
+    except FileNotFoundError:
+        pass
+    return downloaded
+
+
 @bp.route("/<tool_id>/meetings")
 def list_meetings(tool_id: str):
-    """Gibt die letzten 20 Fireflies-Meetings als JSON zurück (5-Min-Cache)."""
+    """Gibt Fireflies-Meetings als JSON zurück.
+    ?filter=downloaded → nur bereits lokal heruntergeladene.
+    """
     tool = db.get_tool(tool_id)
     if not tool:
         return jsonify({"error": "Tool nicht gefunden"}), 404
 
-    # Cache prüfen
-    cached = _meetings_cache.get(tool_id)
-    if cached and (time.time() - cached[0]) < _CACHE_TTL:
-        return jsonify(cached[1])
+    only_downloaded = request.args.get("filter") == "downloaded"
+
+    # Cache prüfen (nur für vollständige Liste)
+    if not only_downloaded:
+        cached = _meetings_cache.get(tool_id)
+        if cached and (time.time() - cached[0]) < _CACHE_TTL:
+            return jsonify(cached[1])
 
     python_exe = get_python_exe(Path(tool["path"]))
     try:
@@ -132,16 +177,20 @@ def list_meetings(tool_id: str):
             capture_output=True, text=True, encoding="utf-8",
             errors="replace", cwd=tool["path"], timeout=30,
         )
-        # Fehlertext aus stdout+stderr zusammensetzen
         err_text = (result.stderr or "").strip() or (result.stdout or "").strip()
         if result.returncode != 0:
-            # Rate-Limit-Hinweis aus dem Text extrahieren
             if "Rate-Limit" in err_text or "too_many_requests" in err_text or "retry" in err_text.lower():
                 msg = next((l for l in err_text.splitlines() if "Rate-Limit" in l or "retry" in l.lower()), err_text)
                 return jsonify({"error": msg}), 429
             return jsonify({"error": err_text or "Fehler beim Laden"}), 500
+
         meetings = json.loads(result.stdout)
         _meetings_cache[tool_id] = (time.time(), meetings)
+
+        if only_downloaded:
+            local_folders = _get_downloaded_folder_names(tool)
+            meetings = [m for m in meetings if _sanitize(m["title"]) in local_folders]
+
         return jsonify(meetings)
     except subprocess.TimeoutExpired:
         return jsonify({"error": "Timeout beim Laden der Meetings"}), 504
