@@ -1,0 +1,40 @@
+<div class="card">
+  <div class="card-title" style="justify-content:space-between;">
+    <span>Output-Dateien</span>
+    <form method="post" action="/tool/{{ tool.id }}/output/open-folder" style="display:inline;">
+      <button type="submit" class="btn btn-gray btn-sm">📁 Ordner öffnen</button>
+    </form>
+  </div>
+  {% if output_dir %}
+  <p class="text-muted" style="margin-bottom:12px; font-family:monospace; font-size:12px;">{{ output_dir }}</p>
+  {% endif %}
+  {% if files %}
+  <table class="file-table">
+    <thead>
+      <tr>
+        <th>Dateiname</th>
+        <th>Größe</th>
+        <th>Geändert</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in files %}
+      <tr>
+        <td class="font-mono">{{ f.rel_path }}</td>
+        <td class="text-muted">{{ f.size_str }}</td>
+        <td class="text-muted">{{ f.modified }}</td>
+        <td>
+          <a href="/tool/{{ tool.id }}/output/download/{{ f.rel_path }}"
+             class="btn btn-outline btn-sm">↓ Download</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted" style="text-align:center; padding:24px;">
+    Noch keine Output-Dateien vorhanden.
+  </p>
+  {% endif %}
+</div>

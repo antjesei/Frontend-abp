@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Willkommen im abp Toolboard</h1>
+  <p>Alle konfigurierten Tools auf einen Blick.</p>
+</div>
+
+{% if tools %}
+<div class="tool-grid">
+  {% for tool in tools %}
+  <div class="tool-card {% if tool.type == 'placeholder' %}placeholder{% endif %}">
+    <div class="tool-card-header">
+      <span class="tool-card-status-dot {{ tool.status }}"></span>
+      <div class="tool-card-info">
+        <div class="tool-card-name">{{ tool.display_name }}</div>
+        <div class="tool-card-desc">{{ tool.description or '' }}</div>
+      </div>
+    </div>
+    <div>
+      <span class="badge badge-{{ tool.type }}">{{ tool.type }}</span>
+      <span class="badge badge-{{ tool.status }}" style="margin-left:4px;">{{ tool.status }}</span>
+      {% if tool.type == 'web' and tool.port %}
+      <span class="text-muted" style="margin-left:8px; font-size:12px;">:{{ tool.port }}</span>
+      {% endif %}
+    </div>
+    {% if tool.type != 'placeholder' %}
+    <div class="tool-card-actions">
+      {% if tool.status not in ('running', 'starting') %}
+      <form method="post" action="/tool/{{ tool.id }}/start" style="display:inline;">
+        <button type="submit" class="btn btn-success btn-sm">▶ Starten</button>
+      </form>
+      {% endif %}
+      {% if tool.status in ('running', 'starting') %}
+        {% if tool.type == 'web' and tool.port %}
+        <a href="http://127.0.0.1:{{ tool.port }}" target="_blank" class="btn btn-primary btn-sm">↗ Öffnen</a>
+        {% endif %}
+        <form method="post" action="/tool/{{ tool.id }}/stop" style="display:inline;">
+          <button type="submit" class="btn btn-danger btn-sm">■ Stoppen</button>
+        </form>
+      {% endif %}
+      <a href="/tool/{{ tool.id }}" class="btn btn-outline btn-sm">Details</a>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center; padding:40px;">
+  <p class="text-muted" style="font-size:16px;">Noch keine Tools sichtbar.</p>
+  <p class="text-muted" style="margin-top:8px;">Gehe zu <a href="/settings">Einstellungen</a>, um Tools zu aktivieren.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if page_title %}{{ page_title }} — {% endif %}abp Toolboard</title>
+  <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="/static/css/style.css">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+  <a href="/"><img src="/static/img/logo_abp.png" alt="abp Logo" class="topbar-logo"></a>
+  <span class="topbar-title">abp Toolboard</span>
+  {% if page_title %}
+  <span class="topbar-page">{{ page_title }}</span>
+  {% endif %}
+</header>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <p class="sidebar-section-label">Tools</p>
+  <ul class="sidebar-nav">
+    <li>
+      <a href="/" {% if request.path == '/' %}class="active"{% endif %}>
+        <span class="sidebar-status-dot"></span>
+        <span class="sidebar-tool-name">Dashboard</span>
+      </a>
+    </li>
+    {% for tool in sidebar_tools %}
+    <li>
+      <a href="/tool/{{ tool.id }}"
+         {% if request.path.startswith('/tool/' + tool.id) %}class="active"{% endif %}>
+        <span class="sidebar-status-dot {{ tool.status }}"></span>
+        <span class="sidebar-tool-name">{{ tool.display_name }}</span>
+      </a>
+    </li>
+    {% endfor %}
+    {% if not sidebar_tools %}
+    <li>
+      <a href="/settings" style="font-style:italic; opacity:0.6;">
+        <span class="sidebar-status-dot"></span>
+        <span class="sidebar-tool-name">Keine Tools sichtbar</span>
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+  <div class="sidebar-footer">
+    <a href="/settings" {% if request.path.startswith('/settings') %}style="color:white"{% endif %}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+      </svg>
+      Einstellungen
+    </a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="main-content">
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-messages">
+    {% for category, message in messages %}
+    <div class="flash-message {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<script src="/static/js/log_stream.js"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

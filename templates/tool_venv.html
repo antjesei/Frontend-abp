@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ tool.display_name }} — Venv</h1>
+  <p><a href="/tool/{{ tool.id }}">← Zurück zu Details</a></p>
+</div>
+
+{% include "tool_venv_partial.html" %}
+{% endblock %}

@@ -1,0 +1,28 @@
+<div class="card">
+  <div class="card-title">.env Konfiguration</div>
+  {% if fields %}
+  <form method="post" action="/tool/{{ tool.id }}/env">
+    {% for field in fields %}
+    <div class="form-group">
+      <label class="form-label">
+        {{ field.key }}
+        {% if field.sensitive %}<span class="sensitive-badge">Sensitiv</span>{% endif %}
+      </label>
+      <input
+        type="{{ 'password' if field.sensitive else 'text' }}"
+        name="env_{{ field.key }}"
+        value="{{ field.value }}"
+        class="form-input"
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary">Speichern</button>
+  </form>
+  {% else %}
+  <p class="text-muted" style="text-align:center; padding:24px;">
+    Keine .env.example gefunden. Keine konfigurierbaren Felder bekannt.
+  </p>
+  {% endif %}
+</div>

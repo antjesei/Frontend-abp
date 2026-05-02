@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<input type="hidden" id="tool-id" value="{{ tool.id }}">
+
+<div class="page-header">
+  <h1>{{ tool.display_name }}</h1>
+  <p>{{ tool.description or '' }}</p>
+</div>
+
+<!-- Status Bar -->
+<div class="tool-status-bar">
+  <span class="tool-status-label">Status:</span>
+  <span class="tool-status-value">
+    <span class="badge badge-{{ status }}">{{ status }}</span>
+  </span>
+  <span class="tool-status-label" style="margin-left:12px;">Typ:</span>
+  <span class="badge badge-{{ tool.type }}">{{ tool.type }}</span>
+  {% if tool.port %}
+  <span class="tool-status-label" style="margin-left:12px;">Port:</span>
+  <span class="font-mono">{{ tool.port }}</span>
+  {% endif %}
+  <span style="flex:1;"></span>
+  {% if status not in ('running', 'starting') and tool.type != 'placeholder' %}
+  <form method="post" action="/tool/{{ tool.id }}/start" style="display:inline;">
+    <button type="submit" class="btn btn-success btn-sm">▶ Starten</button>
+  </form>
+  {% endif %}
+  {% if status in ('running', 'starting') %}
+    {% if tool.type == 'web' and tool.port %}
+    <a href="http://127.0.0.1:{{ tool.port }}" target="_blank" class="btn btn-primary btn-sm">↗ Im Browser öffnen</a>
+    {% endif %}
+    <form method="post" action="/tool/{{ tool.id }}/stop" style="display:inline; margin-left:8px;">
+      <button type="submit" class="btn btn-danger btn-sm">■ Stoppen</button>
+    </form>
+  {% endif %}
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <a class="tab-link" data-tab="run" href="#" onclick="showTab('run'); return false;">Run</a>
+  <a class="tab-link" data-tab="logs" href="#" onclick="showTab('logs'); return false;">Logs</a>
+  <a class="tab-link" data-tab="output" href="#" onclick="showTab('output'); return false;">Output</a>
+  <a class="tab-link" data-tab="env" href="#" onclick="showTab('env'); return false;">.env</a>
+  <a class="tab-link" data-tab="venv" href="#" onclick="showTab('venv'); return false;">Venv</a>
+</div>
+
+<!-- Tab: Run -->
+<div class="tab-content" id="tab-run">
+  {% if tool.type == 'web' %}
+    {% if status == 'running' and tool.port %}
+    <div class="tool-iframe-wrap">
+      <iframe src="http://127.0.0.1:{{ tool.port }}" id="tool-iframe" title="{{ tool.display_name }}"></iframe>
+    </div>
+    {% else %}
+    <div class="card" style="text-align:center; padding:32px;">
+      <p class="text-muted">Tool ist nicht aktiv. Starten, um die Anwendung hier anzuzeigen.</p>
+    </div>
+    {% endif %}
+  {% elif tool.type == 'cli' %}
+  <div class="card">
+    <div class="card-title">CLI-Tool ausführen</div>
+    {% if cli_specs %}
+    <form method="post" action="/tool/{{ tool.id }}/start">
+      {% for spec in cli_specs %}
+      <div class="form-group">
+        <label class="form-label">{{ spec.arg_label }}</label>
+        {% if spec.arg_type == 'text' %}
+        <textarea name="arg_{{ spec.arg_name }}" class="form-textarea">{{ spec.default_value or '' }}</textarea>
+        {% elif spec.arg_type == 'date' %}
+        <input type="date" name="arg_{{ spec.arg_name }}" class="form-input" value="{{ spec.default_value or '' }}">
+        {% else %}
+        <input type="text" name="arg_{{ spec.arg_name }}" class="form-input"
+               value="{{ spec.default_value or '' }}"
+               placeholder="{{ spec.arg_name }}">
+        {% endif %}
+        <small class="text-muted">{{ spec.arg_name }}</small>
+      </div>
+      {% endfor %}
+      <button type="submit" class="btn btn-success">▶ Ausführen</button>
+    </form>
+    {% else %}
+    <form method="post" action="/tool/{{ tool.id }}/start">
+      <p class="text-muted mb-4">Keine CLI-Parameter konfiguriert. Tool wird ohne Argumente gestartet.</p>
+      <button type="submit" class="btn btn-success">▶ Ausführen</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="card" style="text-align:center; padding:32px;">
+    <p class="text-muted">Dieses Placeholder-Tool kann nicht gestartet werden.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Tab: Logs -->
+<div class="tab-content" id="tab-logs">
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between;">
+      <span>Live-Logs</span>
+      <button class="btn btn-gray btn-sm" onclick="document.getElementById('log-output').textContent=''">Leeren</button>
+    </div>
+    <div class="log-terminal" id="log-output">{% for line in logs %}{{ line }}
+{% endfor %}</div>
+  </div>
+</div>
+
+<!-- Tab: Output -->
+<div class="tab-content" id="tab-output">
+  {% include "tool_output_partial.html" %}
+</div>
+
+<!-- Tab: .env -->
+<div class="tab-content" id="tab-env">
+  {% include "tool_env_partial.html" %}
+</div>
+
+<!-- Tab: Venv -->
+<div class="tab-content" id="tab-venv">
+  {% include "tool_venv_partial.html" %}
+</div>
+
+{% endblock %}

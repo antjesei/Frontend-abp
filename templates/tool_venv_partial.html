@@ -1,0 +1,48 @@
+<div class="card">
+  <div class="card-title">Virtuelle Umgebung (.venv)</div>
+  {% if venv_info %}
+    {% if venv_info.has_venv %}
+    <div style="display:flex; gap:24px; margin-bottom:16px; flex-wrap:wrap;">
+      <div>
+        <div class="text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Python Version</div>
+        <div class="font-mono">{{ venv_info.python_version or 'unbekannt' }}</div>
+      </div>
+      <div>
+        <div class="text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Pakete</div>
+        <div class="font-mono">{{ venv_info.packages | length }}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <button id="install-btn" class="btn btn-primary btn-sm"
+              onclick="startInstallStream('{{ tool.id }}')">
+        ↻ requirements.txt installieren
+      </button>
+    </div>
+    <div id="install-output" class="log-terminal" style="height:200px; display:none;"></div>
+    <script>
+      document.getElementById('install-btn').addEventListener('click', function() {
+        document.getElementById('install-output').style.display = 'block';
+      });
+    </script>
+    {% if venv_info.packages %}
+    <div class="card-title" style="margin-top:16px; font-size:13px;">Installierte Pakete</div>
+    <div class="package-list">
+      {% for pkg in venv_info.packages %}
+      <div class="package-item">
+        <span>{{ pkg.name }}</span>
+        <span class="package-version">{{ pkg.version }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% else %}
+    <p class="text-muted" style="text-align:center; padding:24px;">
+      Kein .venv gefunden. Bitte manuell erstellen oder start.bat ausführen.
+    </p>
+    {% endif %}
+  {% else %}
+  <p class="text-muted" style="text-align:center; padding:24px;">
+    Venv-Informationen nicht verfügbar.
+  </p>
+  {% endif %}
+</div>

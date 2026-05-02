@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between;">
+  <div>
+    <h1>Einstellungen</h1>
+    <p>Tools verwalten, sichtbar schalten und konfigurieren.</p>
+  </div>
+  <form method="post" action="/settings/rescan">
+    <button type="submit" class="btn btn-primary">↻ Re-Scan</button>
+  </form>
+</div>
+
+<div style="overflow-x:auto;">
+  <table class="settings-table">
+    <thead>
+      <tr>
+        <th>Tool</th>
+        <th>Typ</th>
+        <th>Sichtbar</th>
+        <th>Anzeigename</th>
+        <th>Port</th>
+        <th>Beschreibung</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tool in tools %}
+      <tr>
+        <td>
+          <span class="font-mono" style="font-size:11px; color:var(--abp-gray-600);">{{ tool.id }}</span>
+          {% if not tool.visible %}
+          <span class="badge badge-new" style="margin-left:6px;">Neu</span>
+          {% endif %}
+        </td>
+        <td><span class="badge badge-{{ tool.type }}">{{ tool.type }}</span></td>
+        <td>
+          <form method="post" action="/settings/tool/{{ tool.id }}" id="form-{{ tool.id }}">
+            <div class="toggle-wrap">
+              <label class="toggle">
+                <input type="checkbox" name="visible" value="1"
+                       {% if tool.visible %}checked{% endif %}
+                       onchange="document.getElementById('form-{{ tool.id }}').requestSubmit()">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+        </td>
+        <td>
+            <input type="text" name="display_name" value="{{ tool.display_name }}"
+                   style="max-width:180px;">
+        </td>
+        <td>
+          {% if tool.type == 'web' %}
+            <input type="number" name="port" value="{{ tool.port or '' }}"
+                   style="max-width:80px;" min="1" max="65535">
+          {% else %}
+            <span class="text-muted">—</span>
+            <input type="hidden" name="port" value="">
+          {% endif %}
+        </td>
+        <td>
+            <input type="text" name="description" value="{{ tool.description or '' }}"
+                   style="max-width:220px;" placeholder="Kurzbeschreibung...">
+        </td>
+        <td>
+            <button type="submit" class="btn btn-primary btn-sm">Speichern</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if not tools %}
+<div class="card" style="text-align:center; padding:40px;">
+  <p class="text-muted">Keine Tools gefunden. Klicke auf Re-Scan, um das Verzeichnis zu durchsuchen.</p>
+</div>
+{% endif %}
+{% endblock %}

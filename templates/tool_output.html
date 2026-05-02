@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ tool.display_name }} — Output</h1>
+  <p><a href="/tool/{{ tool.id }}">← Zurück zu Details</a></p>
+</div>
+
+{% set venv_info = none %}
+{% include "tool_output_partial.html" %}
+{% endblock %}
