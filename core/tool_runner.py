@@ -247,7 +247,7 @@ def start_tool_with_ids(tool: dict, meeting_ids: list[str]) -> tuple[bool, str]:
     if tool_id in active_runs:
         rp = active_runs[tool_id]
         if rp.status in ("running", "starting"):
-            return False, "Tool läuft bereits."
+            stop_tool(tool_id)
         del active_runs[tool_id]
 
     python_exe = get_python_exe(Path(tool["path"]))

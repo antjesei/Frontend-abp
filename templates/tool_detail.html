@@ -21,7 +21,7 @@
   <span class="font-mono">{{ tool.port }}</span>
   {% endif %}
   <span style="flex:1;"></span>
-  {% if status not in ('running', 'starting') and tool.type != 'placeholder' %}
+  {% if status not in ('running', 'starting') and tool.type == 'web' %}
   <form method="post" action="/tool/{{ tool.id }}/start" style="display:inline;">
     <button type="submit" class="btn btn-success btn-sm">▶ Starten</button>
   </form>
